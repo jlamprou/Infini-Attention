@@ -1,8 +1,8 @@
 # Infi-Attention
 
-[![GitHub Stars](https://img.shields.io/github/stars/jlamprou/Infi-Attention?style=social)](https://github.com/jlamprou/Infi-Attention/stargazers)
-[![GitHub Issues](https://img.shields.io/github/issues/jlamprou/Infi-Attention)](https://github.com/jlamprou/Infi-Attention/issues)
-[![License](https://img.shields.io/github/license/jlamprou/Infi-Attention)](https://github.com/jlamprou/Infi-Attention/blob/main/LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/jlamprou/Infini-Attention?style=social)](https://github.com/jlamprou/Infini-Attention/stargazers)
+[![GitHub Issues](https://img.shields.io/github/issues/jlamprou/Infini-Attention)](https://github.com/jlamprou/Infini-Attention/issues)
+[![License](https://img.shields.io/github/license/jlamprou/Infini-Attention)](https://github.com/jlamprou/Infini-Attention/blob/main/LICENSE)
 
 
 **Leave No Context Behind: Efficient Infinite Context Transformers with Infini-attention Pytorch Implementation** ([Paper](https://arxiv.org/abs/2404.07143))
@@ -29,8 +29,8 @@ Contributions to this project are welcome! If you have any ideas, suggestions, o
 
 ## License
 
-This project is licensed under the [MIT License](https://github.com/yourusername/repo-name/blob/main/LICENSE).
+This project is licensed under the MIT License.
 
 ---
 
-🌟 Give this project a star on [GitHub](https://github.com/jlamprou/Infi-Attention) to show your support!
+🌟 Give this project a star on [GitHub](https://github.com/jlamprou/Infini-Attention) to show your support!
