@@ -1,4 +1,4 @@
-# Infi-Attention
+# Infini-Attention
 
 [![GitHub Stars](https://img.shields.io/github/stars/jlamprou/Infini-Attention?style=social)](https://github.com/jlamprou/Infini-Attention/stargazers)
 [![GitHub Issues](https://img.shields.io/github/issues/jlamprou/Infini-Attention)](https://github.com/jlamprou/Infini-Attention/issues)
