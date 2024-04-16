@@ -33,7 +33,8 @@ Training Script Example with [Qwen1.5-MoE-A2.7B](https://huggingface.co/Qwen/Qwe
 ```bash
 python run_clm.py 
 --model_name_or_path Qwen/Qwen1.5-MoE-A2.7B
---block_size 32768 --per_device_train_batch_size 1
+--block_size 32768 
+--per_device_train_batch_size 1
 --tokenizer_name Qwen/Qwen1.5-MoE-A2.7B 
 --num_train_epochs 10 
 --dataset_name pg19 
