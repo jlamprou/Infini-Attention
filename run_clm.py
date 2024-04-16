@@ -598,29 +598,24 @@ def main():
             if "labels" in batch:
                 labels = torch.tensor_split(batch["labels"], list(range(segment_length, batch["labels"].shape[1], segment_length)), dim = 1)
             M_Z = None
-            for i in range(len(input_ids)):
-                with accelerator.accumulate(model):
-                    outputs = model(input_ids=input_ids[i], attention_mask=attention_mask[i], labels=labels[i], M_Z=M_Z)
-                    loss = outputs.loss
-                    M_Z = outputs.M_Z
-                    # Print M and Z from tuple (M, Z) for the first segment
-                    total_segment_loss += loss.detach().float()
-                    # We keep track of the loss at each epoch
-                    if args.with_tracking:
-                        total_loss += loss.detach().float()
-                    accelerator.backward(loss)
-                    optimizer.step()
-                    lr_scheduler.step()
-                    optimizer.zero_grad()
+            avg_segment_loss = 0
+            for i in range(len(input_ids)):          
+                outputs = model(input_ids=input_ids[i], attention_mask=attention_mask[i],labels=labels[i] ,M_Z=M_Z)                                 
+                M_Z = outputs.M_Z
+                loss = outputs.loss
+                accelerator.backward(loss)
+                total_loss += loss.detach().float()
+                total_segment_loss += loss.detach().float() 
+            optimizer.step()
+            lr_scheduler.step()
+            optimizer.zero_grad()
 
-            # Checks if the accelerator has performed an optimization step behind the scenes
-            avg_segment_loss = total_segment_loss / gradient_accumulation_steps
             if accelerator.sync_gradients:
                 progress_bar.update(1)
                 completed_steps += 1
             # Log the training loss and lr every 100 steps
             if completed_steps % 100 == 0:
-
+                avg_segment_loss = total_segment_loss / len(input_ids)
                 print(f"Step: {completed_steps}, Loss: {avg_segment_loss.item()}, LR: {lr_scheduler.get_last_lr()[0]}")
             if isinstance(checkpointing_steps, int):
                 if completed_steps % checkpointing_steps == 0:
