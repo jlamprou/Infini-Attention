@@ -51,11 +51,11 @@ from transformers import (
     SchedulerType,
     default_data_collator,
     get_scheduler,
+    Qwen2MoeConfig
 )
 from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
 from modeling_qwen_transformers import Qwen2MoeForCausalLM
-from configuration_qwen2_moe import Qwen2MoeConfig
 from datasets import DatasetDict, interleave_datasets
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 check_min_version("4.40.0.dev0")
