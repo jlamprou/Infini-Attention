@@ -4,6 +4,7 @@
 [![GitHub Issues](https://img.shields.io/github/issues/jlamprou/Infini-Attention)](https://github.com/jlamprou/Infini-Attention/issues)
 [![License](https://img.shields.io/github/license/jlamprou/Infini-Attention)](https://github.com/jlamprou/Infini-Attention/blob/main/LICENSE)
 
+![image](https://github.com/jlamprou/Infini-Attention/assets/41962910/f66fd556-e1d2-4ccc-89e9-f4812244b8a2)
 
 **Leave No Context Behind: Efficient Infinite Context Transformers with Infini-attention Pytorch Implementation** ([Paper](https://arxiv.org/abs/2404.07143))
 
