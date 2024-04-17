@@ -1437,7 +1437,7 @@ class Qwen2MoeModel(Qwen2MoePreTrainedModel):
                     output_attentions,
                     output_router_logits,
                     use_cache,
-                    M_Z=M_Z,
+                    M_Z,
                 )
             else:
                 layer_outputs = decoder_layer(
