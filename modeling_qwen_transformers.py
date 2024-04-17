@@ -499,8 +499,7 @@ class InfiniAttention(Qwen2MoeAttention):
     ):
         super().__init__(config, layer_idx)
 
-        self.beta = nn.Parameter(torch.randn(1))
-        
+        self.beta = nn.Embedding(1, 1)  # Use nn.Embedding instead of nn.Parameter for LoRa training        
         self.segment_size = 2048
 
     def forward(
@@ -599,7 +598,7 @@ class InfiniAttention(Qwen2MoeAttention):
         return M, z
 
     def _long_term_injection(self, A_dot, A_mem):
-        beta = torch.sigmoid(self.beta)
+        beta = torch.sigmoid(self.beta(torch.tensor([0], device=A_dot.device)).squeeze())
         A = beta * A_mem + (1 - beta) * A_dot
         return A
 

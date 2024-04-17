@@ -10,6 +10,11 @@
 
 This repository provides a PyTorch implementation of the Infi-Attention mechanism, following the paper step-by-step. The code is written using the HuggingFace template for seamless integration with their ecosystem.
 
+## Latest Updates:
+- Updated the evalution loop to segment and calculate total accuracy on the whole sequence.
+- Added passkey retrieval finetuning and testing script, with this script we can actually evaluate our implementation with a 1M Keypass Retrieval like the paper. We need at least 1x80GB GPU, once that is available we cant test.
+- Switched beta to nn.Embedding, beacuse nn.Parameter is not compatible with LoRa.
+
 ## Features
 
 - PyTorch implementation of Infi-Attention
@@ -26,6 +31,9 @@ This repository provides a PyTorch implementation of the Infi-Attention mechanis
 
 2. **Delta Use**: There is currently a shape mismatch when utilizing the delta values. This issue will be addressed in the near future, as the current focus is on resolving the segmentation aspect.
 3. **Caching** : Don't use cache=True on your model because i haven't implemented it yet!
+
+
+
 ## Run Qwen CLM pre-training:
 I don't know for sure that this is the right way to segment!!!
 
@@ -43,6 +51,15 @@ python run_clm.py
 --dataset_name pg19 
 --learning_rate 0.01 
 --segment_length 2048
+```
+
+## Run Qwen CLM keypass retrieval
+This script creates random keypass retrieval tasks and finetunes the model using LoRa. 
+
+To run with 32k context:
+```bash
+python passkey_retrieval.py
+--num_tokens 32000
 ```
 
 ## Contributing
