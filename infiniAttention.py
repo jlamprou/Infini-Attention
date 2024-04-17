@@ -1,3 +1,6 @@
+from .modeling_qwen_transformers import apply_rotary_pos_emb
+
+
 class InfiniAttention(Attention):
     def __init__(
         self,
