@@ -4,6 +4,7 @@
 [![GitHub Issues](https://img.shields.io/github/issues/jlamprou/Infini-Attention)](https://github.com/jlamprou/Infini-Attention/issues)
 [![License](https://img.shields.io/github/license/jlamprou/Infini-Attention)](https://github.com/jlamprou/Infini-Attention/blob/main/LICENSE)
 
+![image](https://github.com/jlamprou/Infini-Attention/assets/41962910/f66fd556-e1d2-4ccc-89e9-f4812244b8a2)
 
 **Leave No Context Behind: Efficient Infinite Context Transformers with Infini-attention Pytorch Implementation** ([Paper](https://arxiv.org/abs/2404.07143))
 
@@ -21,8 +22,10 @@ This repository provides a PyTorch implementation of the Infi-Attention mechanis
   - Theory 1: Segment the input within the attention class and perform in-class operations using a loop for each segment. However, this approach does not result in significant memory savings compared to classic SDPA.
   - Theory 2: Segment the input during the training loop and feed each segment to the model with gradient accumulation steps equal to Sequence Length / Segment Length.
 
-2. **Delta Use**: There is currently a shape mismatch when utilizing the delta values. This issue will be addressed in the near future, as the current focus is on resolving the segmentation aspect.
+#### ***We Implemented theory 2 and it seems to work!!! I tested the accuracy at every batch using the concat of logits and labels to check if the accuarcy on the total sequence length is improving during training and once the learnable beta got some data we got the same accuracy rate with normal SDPA attention.***
 
+2. **Delta Use**: There is currently a shape mismatch when utilizing the delta values. This issue will be addressed in the near future, as the current focus is on resolving the segmentation aspect.
+3. **Caching** : Don't use cache=True on your model because i haven't implemented it yet!
 ## Run Qwen CLM pre-training:
 I don't know for sure that this is the right way to segment!!!
 
