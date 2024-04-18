@@ -134,7 +134,7 @@ class InfiniAttention(nn.Module):
 
     def _update_memory(self, K, V, M, z, use_delta=False):
         if use_delta:
-            V_retrieved = torch.matmul(F.elu(K).transpose(-2, -1) + 1, M) / (torch.matmul(F.elu(K).transpose(-2, -1) + 1, z.unsqueeze(-1)) + 1e-8)
+            V_retrieved = torch.matmul(F.elu(K) + 1, M) / (torch.matmul(F.elu(K) + 1, z.unsqueeze(-1)) + 1e-8)
             updated_M = M + torch.matmul(F.elu(K).transpose(-2, -1) + 1, V - V_retrieved)
         else:
             updated_M = M + torch.matmul(F.elu(K).transpose(-2, -1) + 1, V)
