@@ -11,6 +11,7 @@
 This repository provides a PyTorch implementation of the Infi-Attention mechanism, following the paper step-by-step. The code is written using the HuggingFace template for seamless integration with their ecosystem.
 
 ## Latest Updates:
+- Delta usage and caching is now working.
 - Updated the evalution loop to segment and calculate total accuracy on the whole sequence.
 - Added passkey retrieval finetuning and testing script, with this script we can actually evaluate our implementation with a 1M Keypass Retrieval like the paper. We need at least 1x80GB GPU, once that is available we cant test.
 - Switched beta to nn.Embedding, beacuse nn.Parameter is not compatible with LoRa.
@@ -29,8 +30,6 @@ This repository provides a PyTorch implementation of the Infi-Attention mechanis
 
 #### ***We Implemented theory 2 and it seems to work!!! I tested the accuracy at every batch using the concat of logits and labels to check if the accuarcy on the total sequence length is improving during training and once the learnable beta got some data we got the same accuracy rate with normal SDPA attention.***
 
-2. **Delta Use**: There is currently a shape mismatch when utilizing the delta values. This issue will be addressed in the near future, as the current focus is on resolving the segmentation aspect.
-3. **Caching** : Don't use cache=True on your model because i haven't implemented it yet!
 
 
 
