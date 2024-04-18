@@ -22,6 +22,13 @@ This repository provides a PyTorch implementation of the Infi-Attention mechanis
 - Follows the paper's methodology closely
 - Utilizes the HuggingFace template for easy integration
 
+## Why Qwen1.5MoE?
+- MoE : The model has 14.3B parameters in total and 2.7B activated parameters during runtime.
+- Simple and modifiable architecture.
+- Great Benchmark Perfomance: The model achieves comparable perfomance with bigger LLMs with only 2.2B paramaters on activation. 
+
+   **Using this model we can test the benchmark perfomance compared to other big LLMs (llama, Mixtral etc.) without the need of huge resources. The pre-trained model is a great candidate to test in long-contexts.**
+
 ## Current Limitations and Areas for Improvement
 
 1. **Segment-wise Attention**: The paper does not provide clear guidance on when the segmentation should occur during the model training process. Two potential theories are being explored:
