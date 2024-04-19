@@ -16,6 +16,12 @@ This repository provides a PyTorch implementation of the Infi-Attention mechanis
 - Added passkey retrieval finetuning and testing script, with this script we can actually evaluate our implementation with a 1M Keypass Retrieval like the paper. We need at least 1x80GB GPU, once that is available we cant test.
 - Switched beta to nn.Embedding, beacuse nn.Parameter is not compatible with LoRa.
 
+## TODO
+- [ ] 1M Passkey Retrieval Finetuning and benchmark, we have to finetune and benchmark the Qwen1.5 model to check the performance of the implementation. (My 2xA100 server is on maintenance for a few days) 
+- [ ] Triton/CUDA optimized implementation of the memory ops
+- [ ] New Dataset class that takes care of the segmentation
+- [ ] New Huggingface Trainer Class that trains segment-wise
+
 ## Features
 
 - PyTorch implementation of Infi-Attention
