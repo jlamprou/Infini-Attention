@@ -273,8 +273,8 @@ def main():
         accelerator_log_kwargs["log_with"] = args.report_to
         accelerator_log_kwargs["project_dir"] = args.output_dir
     segment_length = args.segment_length
-    gradient_accumulation_steps = args.block_size // segment_length
-    accelerator = Accelerator(gradient_accumulation_steps=gradient_accumulation_steps, **accelerator_log_kwargs)
+   # gradient_accumulation_steps = args.block_size // segment_length
+    accelerator = Accelerator(**accelerator_log_kwargs)
 
     # Make one log on every process with the configuration for debugging.
     logging.basicConfig(
@@ -540,9 +540,7 @@ def main():
     logger.info(f"  Num Epochs = {args.num_train_epochs}")
     logger.info(f"  Instantaneous batch size per device = {args.per_device_train_batch_size}")
     logger.info(f"  Total train batch size (w. parallel, distributed & accumulation) = {total_batch_size}")
-    logger.info(f"  Gradient Accumulation steps = {gradient_accumulation_steps}")
     logger.info(f"  Total optimization steps = {args.max_train_steps}")
-    logger.info(f"  Number of model parameters = {model.num_parameters()}")
     # Only show the progress bar once on each machine.
     progress_bar = tqdm(range(args.max_train_steps), disable=not accelerator.is_local_main_process)
     completed_steps = 0
