@@ -123,7 +123,7 @@ class InfiniAttention(nn.Module):
         combined_output = combined_output.transpose(1, 2).contiguous()
         combined_output = combined_output.view(bsz, q_len, self.hidden_size)
         final_output = self.o_proj(combined_output)
-        return final_output, None, None, (M, z)
+        return final_output, None, past_key_value, (M, z)
 
     def _retrieve_from_memory(self, Q, M, z):
         # Retrieve context from compressive memory using linear attention (Eq. 3)
