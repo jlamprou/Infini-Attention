@@ -57,6 +57,7 @@ from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
 from modeling_qwen_transformers import Qwen2MoeForCausalLM
 from datasets import DatasetDict, interleave_datasets
+from SegmentedDataset import SegmentedDataset
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 check_min_version("4.40.0.dev0")
 
@@ -66,6 +67,7 @@ require_version("datasets>=2.14.0", "To fix: pip install -r examples/pytorch/lan
 
 MODEL_CONFIG_CLASSES = list(MODEL_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
+
 
 
 def parse_args():
@@ -457,8 +459,9 @@ def main():
             desc=f"Grouping texts in chunks of {block_size}",
         )
 
-    train_dataset = lm_datasets["train"]
-    eval_dataset = lm_datasets["validation"]
+    train_dataset = SegmentedDataset(lm_datasets["train"], segment_length)
+    eval_dataset = SegmentedDataset(lm_datasets["validation"], segment_length)
+
 
     # Log a few random samples from the training set:
     for index in random.sample(range(len(train_dataset)), 3):
@@ -580,6 +583,7 @@ def main():
     
     for epoch in range(starting_epoch, args.num_train_epochs):
         model.train()
+       # model.gradient_checkpointing_enable()
         total_loss = 0
         if args.resume_from_checkpoint and epoch == starting_epoch and resume_step is not None:
             # We skip the first `n` batches in the dataloader when resuming from a checkpoint
@@ -587,33 +591,24 @@ def main():
         else:
             active_dataloader = train_dataloader
         for step, batch in enumerate(active_dataloader):
-            total_segment_loss = 0
             # Segment the batch items into smaller chunks of 2048 tokens
-            input_ids = torch.tensor_split(batch["input_ids"], list(range(segment_length, batch["input_ids"].shape[1], segment_length)), dim = 1)
-            if "attention_mask" in batch:
-                attention_mask = torch.tensor_split(batch["attention_mask"], list(range(segment_length, batch["attention_mask"].shape[1], segment_length)), dim = 1)
-            if "labels" in batch:
-                labels = torch.tensor_split(batch["labels"], list(range(segment_length, batch["labels"].shape[1], segment_length)), dim = 1)
-            M_Z = None
-            avg_segment_loss = 0
-            for i in range(len(input_ids)):          
-                outputs = model(input_ids=input_ids[i], attention_mask=attention_mask[i],labels=labels[i] ,M_Z=M_Z)                                 
-                M_Z = outputs.M_Z
+            for i in range(len(batch["input_ids"])):   
+                outputs = model(input_ids=batch["input_ids"][i], attention_mask=batch["attention_mask"][i],labels=batch["labels"][i])                                 
                 loss = outputs.loss
                 accelerator.backward(loss)
                 total_loss += loss.detach().float()
-                total_segment_loss += loss.detach().float() 
+            model.reset_memory()
             optimizer.step()
             lr_scheduler.step()
             optimizer.zero_grad()
+
 
             if accelerator.sync_gradients:
                 progress_bar.update(1)
                 completed_steps += 1
             # Log the training loss and lr every 100 steps
             if completed_steps % 100 == 0:
-                avg_segment_loss = total_segment_loss / len(input_ids)
-                print(f"Step: {completed_steps}, Loss: {avg_segment_loss.item()}, LR: {lr_scheduler.get_last_lr()[0]}")
+                print(f"Step: {completed_steps}, Loss: {loss.item()}, LR: {lr_scheduler.get_last_lr()[0]}")
             if isinstance(checkpointing_steps, int):
                 if completed_steps % checkpointing_steps == 0:
                     output_dir = f"step_{completed_steps}"
@@ -622,60 +617,30 @@ def main():
                     accelerator.save_state(output_dir)
             if completed_steps >= args.max_train_steps:
                 break
-
-            model.eval()
-
-            losses = []
-            accuracies = []
-
+        model.eval()
+        losses = []
         for step, batch in enumerate(eval_dataloader):
-            with torch.no_grad():
-                # Segment the batch items into smaller chunks of 2048 tokens
-                input_ids = torch.tensor_split(batch["input_ids"], list(range(segment_length, batch["input_ids"].shape[1], segment_length)), dim=1)
-                
-                if "attention_mask" in batch:
-                    attention_mask = torch.tensor_split(batch["attention_mask"], list(range(segment_length, batch["attention_mask"].shape[1], segment_length)), dim=1)
-                
-                if "labels" in batch:
-                    labels = batch["labels"]
-
-                M_Z = None
-                logits = []
-
-                for i in range(len(input_ids)):
-                    outputs = model(input_ids=input_ids[i], attention_mask=attention_mask[i], M_Z=M_Z)
-                    M_Z = outputs.M_Z
-                    logits.append(outputs.logits)
-
-                # Concatenate the logits from all segments
-                concatenated_logits = torch.cat(logits, dim=1)
-
-                # Calculate the loss and accuracy
-                loss = torch.nn.functional.cross_entropy(concatenated_logits, labels)
-                losses.append(accelerator.gather_for_metrics(loss.repeat(args.per_device_eval_batch_size)))
-
-                predictions = torch.argmax(concatenated_logits, dim=-1)
-                accuracy = (predictions == labels).float().mean()
-                accuracies.append(accelerator.gather_for_metrics(accuracy.repeat(args.per_device_eval_batch_size)))
+            for i in range(len(batch["input_ids"])):
+                with torch.no_grad():
+                    outputs = model(input_ids=batch["input_ids"][i], attention_mask=batch["attention_mask"][i],labels=batch["labels"][i])
+            model.reset_memory()
+            loss = outputs.loss
+            losses.append(accelerator.gather_for_metrics(loss.repeat(args.per_device_eval_batch_size)))
 
         losses = torch.cat(losses)
-        accuracies = torch.cat(accuracies)
-
         try:
             eval_loss = torch.mean(losses)
-            eval_accuracy = torch.mean(accuracies)
             perplexity = math.exp(eval_loss)
         except OverflowError:
             perplexity = float("inf")
 
-        logger.info(f"epoch {epoch}: perplexity: {perplexity} eval_loss: {eval_loss} eval_accuracy: {eval_accuracy}")
+        logger.info(f"epoch {epoch}: perplexity: {perplexity} eval_loss: {eval_loss}")
 
         if args.with_tracking:
             accelerator.log(
                 {
                     "perplexity": perplexity,
                     "eval_loss": eval_loss,
-                    "eval_accuracy": eval_accuracy,
                     "train_loss": total_loss.item() / len(train_dataloader),
                     "epoch": epoch,
                     "step": completed_steps,

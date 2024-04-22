@@ -499,7 +499,9 @@ class InfiniAttention(Qwen2MoeAttention):
     ):
         super().__init__(config, layer_idx)
 
-        self.beta = nn.Embedding(1, 1)  # Use nn.Embedding instead of nn.Parameter for LoRa training        
+        self.beta = nn.Parameter(torch.randn(1))
+        self.register_buffer("M", torch.zeros(self.num_heads, self.head_dim, self.head_dim))
+        self.register_buffer("z", torch.zeros(self.num_heads, self.head_dim))
         self.segment_size = 2048
 
     def forward(
@@ -510,16 +512,9 @@ class InfiniAttention(Qwen2MoeAttention):
         past_key_value: Optional[Cache] = None,
         output_attentions: bool = False,
         use_cache: bool = False,
-        M_Z: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
         **kwargs,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
         
-        # Initialize memory and normalization term 
-        if M_Z is None:
-            M = torch.zeros(self.num_heads, self.head_dim, self.head_dim).to(hidden_states.device)
-            z = torch.zeros(self.num_heads, self.head_dim).to(hidden_states.device)
-        else:
-            M, z = M_Z
 
         bsz, q_len, _ = hidden_states.size()
 
@@ -542,8 +537,6 @@ class InfiniAttention(Qwen2MoeAttention):
             cache_kwargs = {"sin": sin, "cos": cos}  # Specific to RoPE models
             key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
 
-        key_states = repeat_kv(key_states, self.num_key_value_groups)
-        value_states = repeat_kv(value_states, self.num_key_value_groups)
 
         if attention_mask is not None:
             if attention_mask.size() != (bsz, 1, q_len, kv_seq_len):
@@ -554,9 +547,9 @@ class InfiniAttention(Qwen2MoeAttention):
 
         # GQA
         # Memory retrieval and attention calculation per segment
-        memory_output = self._retrieve_from_memory(query_states, M, z)
+        memory_output = self._retrieve_from_memory(query_states, self.M, self.z)
         # Update memory with current segment's key and value states
-        M, z  = self._update_memory(key_states, value_states, M, z)
+        self.M, self.z  = self._update_memory(key_states, value_states, self.M, self.z)
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
@@ -576,7 +569,7 @@ class InfiniAttention(Qwen2MoeAttention):
         combined_output = combined_output.transpose(1, 2).contiguous()
         combined_output = combined_output.view(bsz, q_len, self.hidden_size)
         final_output = self.o_proj(combined_output)
-        return final_output, None, past_key_value, (M, z)
+        return final_output, None, past_key_value
 
     def _retrieve_from_memory(self, Q, M, z):
         # Retrieve context from compressive memory using linear attention (Eq. 3)
@@ -593,12 +586,12 @@ class InfiniAttention(Qwen2MoeAttention):
             updated_M = M + torch.matmul(F.elu(K).transpose(-2, -1) + 1, V)
         
         updated_z = z + (F.elu(K) + 1).sum(dim=-2)
-        M = updated_M.detach()
-        z = updated_z.detach()
+        M = updated_M
+        z = updated_z
         return M, z
 
     def _long_term_injection(self, A_dot, A_mem):
-        beta = torch.sigmoid(self.beta(torch.tensor([0], device=A_dot.device)).squeeze())
+        beta = torch.sigmoid(self.beta)
         A = beta * A_mem + (1 - beta) * A_dot
         return A
 
@@ -1091,7 +1084,6 @@ class Qwen2MoeDecoderLayer(nn.Module):
         output_attentions: Optional[bool] = False,
         output_router_logits: Optional[bool] = False,
         use_cache: Optional[bool] = False,
-        M_Z: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
         **kwargs,
     ) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]]:
         if "padding_mask" in kwargs:
@@ -1120,26 +1112,15 @@ class Qwen2MoeDecoderLayer(nn.Module):
 
         hidden_states = self.input_layernorm(hidden_states)
         # if we are using AltInfiniAttention, we need to pass the M and Z values
-        if isinstance(self.self_attn, InfiniAttention):
-            # Self Attention
-            hidden_states, self_attn_weights, present_key_value, M_Z = self.self_attn(
-                hidden_states=hidden_states,
-                attention_mask=attention_mask,
-                position_ids=position_ids,
-                past_key_value=past_key_value,
-                output_attentions=output_attentions,
-                use_cache=use_cache,
-                M_Z=M_Z,
-            )
-        else:
-            hidden_states, self_attn_weights, present_key_value = self.self_attn(
-                hidden_states=hidden_states,
-                attention_mask=attention_mask,
-                position_ids=position_ids,
-                past_key_value=past_key_value,
-                output_attentions=output_attentions,
-                use_cache=use_cache,
-            )
+
+        hidden_states, self_attn_weights, present_key_value = self.self_attn(
+            hidden_states=hidden_states,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            past_key_value=past_key_value,
+            output_attentions=output_attentions,
+            use_cache=use_cache,
+        )
 
         
         hidden_states = residual + hidden_states
@@ -1166,8 +1147,7 @@ class Qwen2MoeDecoderLayer(nn.Module):
 
         if output_router_logits:
             outputs += (router_logits,)
-        if M_Z is not None:
-            outputs += (M_Z,)
+
         return outputs
 
 
@@ -1334,7 +1314,6 @@ class Qwen2MoeModel(Qwen2MoePreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         output_router_logits: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-        M_Z: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
     ) -> Union[Tuple, MoeModelOutputWithPast]:
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_router_logits = (
@@ -1437,7 +1416,6 @@ class Qwen2MoeModel(Qwen2MoePreTrainedModel):
                     output_attentions,
                     output_router_logits,
                     use_cache,
-                    M_Z,
                 )
             else:
                 layer_outputs = decoder_layer(
@@ -1448,7 +1426,6 @@ class Qwen2MoeModel(Qwen2MoePreTrainedModel):
                     output_attentions=output_attentions,
                     output_router_logits=output_router_logits,
                     use_cache=use_cache,
-                    M_Z=M_Z,
                 )
 
             hidden_states = layer_outputs[0]
@@ -1462,7 +1439,6 @@ class Qwen2MoeModel(Qwen2MoePreTrainedModel):
             if output_router_logits and layer_outputs[-1] is not None:
                 all_router_logits += (layer_outputs[-1],)
             
-            M_Z = layer_outputs[-1]
 
         hidden_states = self.norm(hidden_states)
 
@@ -1486,7 +1462,6 @@ class Qwen2MoeModel(Qwen2MoePreTrainedModel):
             hidden_states=all_hidden_states,
             attentions=all_self_attns,
             router_logits=all_router_logits,
-            M_Z=M_Z,
         )
     
 
@@ -1524,7 +1499,13 @@ class Qwen2MoeForCausalLM(Qwen2MoePreTrainedModel):
 
     def get_decoder(self):
         return self.model
-
+    
+    def reset_memory(self):
+        for layer in self.model.layers:
+            if isinstance(layer, Qwen2MoeDecoderLayer):
+                layer.self_attn.M.zero_()
+                layer.self_attn.z.zero_()
+                
     @add_start_docstrings_to_model_forward(QWEN2MOE_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=MoeCausalLMOutputWithPast, config_class=_CONFIG_FOR_DOC)
     def forward(
@@ -1540,7 +1521,6 @@ class Qwen2MoeForCausalLM(Qwen2MoePreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         output_router_logits: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-        M_Z: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
     ) -> Union[Tuple, MoeCausalLMOutputWithPast]:
         r"""
         Args:
@@ -1589,11 +1569,9 @@ class Qwen2MoeForCausalLM(Qwen2MoePreTrainedModel):
             output_hidden_states=output_hidden_states,
             output_router_logits=output_router_logits,
             return_dict=return_dict,
-            M_Z=M_Z,
         )
 
         hidden_states = outputs[0]
-        M_Z = outputs.M_Z
         logits = self.lm_head(hidden_states)
         logits = logits.float()
 
@@ -1635,7 +1613,6 @@ class Qwen2MoeForCausalLM(Qwen2MoePreTrainedModel):
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
             router_logits=outputs.router_logits,
-            M_Z=M_Z,
         )
 
     def prepare_inputs_for_generation(
@@ -1750,7 +1727,6 @@ class Qwen2MoeForSequenceClassification(Qwen2MoePreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-        M_Z: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
     ) -> Union[Tuple, SequenceClassifierOutputWithPast]:
         r"""
         labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
@@ -1770,10 +1746,8 @@ class Qwen2MoeForSequenceClassification(Qwen2MoePreTrainedModel):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
-            M_Z=M_Z,
         )
         hidden_states = transformer_outputs[0]
-        M_Z = transformer_outputs.M_Z
         logits = self.score(hidden_states)
 
         if input_ids is not None:
@@ -1829,5 +1803,4 @@ class Qwen2MoeForSequenceClassification(Qwen2MoePreTrainedModel):
             past_key_values=transformer_outputs.past_key_values,
             hidden_states=transformer_outputs.hidden_states,
             attentions=transformer_outputs.attentions,
-            M_Z=M_Z,
         )

@@ -11,15 +11,20 @@
 This repository provides a PyTorch implementation of the Infi-Attention mechanism, following the paper step-by-step. The code is written using the HuggingFace template for seamless integration with their ecosystem.
 
 ## Latest Updates:
-- Delta usage and caching is now working.
-- Updated the evalution loop to segment and calculate total accuracy on the whole sequence.
+- Updated InfiniAttention module:
+  - Changed memory M_z to a buffer for improved efficiency
+  - Implemented reset_memory() function to zero out M and z tensors after processing all segments
+  - Eliminated the need for detach() tricks and argument tricks, simplifying the codebase
+- Introduced new SegmentedDataset class:
+  - Handles data segmentation within the dataset itself
+  - Optimizes time and memory usage during the training process
 - Added passkey retrieval finetuning and testing script, with this script we can actually evaluate our implementation with a 1M Keypass Retrieval like the paper. We need at least 1x80GB GPU, once that is available we cant test.
-- Switched beta to nn.Embedding, beacuse nn.Parameter is not compatible with LoRa.
+
 
 ## TODO
 - [ ] 1M Passkey Retrieval Finetuning and benchmark, we have to finetune and benchmark the Qwen1.5 model to check the performance of the implementation. (My 2xA100 server is on maintenance for a few days) 
 - [ ] Triton/CUDA optimized implementation of the memory ops
-- [ ] New Dataset class that takes care of the segmentation
+- [x] New Dataset class that takes care of the segmentation
 - [ ] New Huggingface Trainer Class that trains segment-wise
 
 ## Features

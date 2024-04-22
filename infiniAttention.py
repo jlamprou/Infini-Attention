@@ -48,7 +48,8 @@ class InfiniAttention(nn.Module):
         )
 
         self.beta = nn.Parameter(torch.randn(1))
-        
+        self.register_buffer("M", torch.zeros(self.num_heads, self.head_dim, self.head_dim))
+        self.register_buffer("z", torch.zeros(self.num_heads, self.head_dim))
         self.segment_size = 2048
 
     def forward(
@@ -59,16 +60,9 @@ class InfiniAttention(nn.Module):
         past_key_value: Optional[Cache] = None,
         output_attentions: bool = False,
         use_cache: bool = False,
-        M_Z: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
         **kwargs,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
         
-        # Initialize memory and normalization term 
-        if M_Z is None:
-            M = torch.zeros(self.num_heads, self.head_dim, self.head_dim).to(hidden_states.device)
-            z = torch.zeros(self.num_heads, self.head_dim).to(hidden_states.device)
-        else:
-            M, z = M_Z
 
         bsz, q_len, _ = hidden_states.size()
 
@@ -101,9 +95,9 @@ class InfiniAttention(nn.Module):
 
         # GQA
         # Memory retrieval and attention calculation per segment
-        memory_output = self._retrieve_from_memory(query_states, M, z)
+        memory_output = self._retrieve_from_memory(query_states, self.M, self.z)
         # Update memory with current segment's key and value states
-        M, z  = self._update_memory(key_states, value_states, M, z)
+        self.M, self.z  = self._update_memory(key_states, value_states, self.M, self.z)
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
@@ -123,7 +117,7 @@ class InfiniAttention(nn.Module):
         combined_output = combined_output.transpose(1, 2).contiguous()
         combined_output = combined_output.view(bsz, q_len, self.hidden_size)
         final_output = self.o_proj(combined_output)
-        return final_output, None, past_key_value, (M, z)
+        return final_output, None, past_key_value
 
     def _retrieve_from_memory(self, Q, M, z):
         # Retrieve context from compressive memory using linear attention (Eq. 3)
@@ -140,14 +134,17 @@ class InfiniAttention(nn.Module):
             updated_M = M + torch.matmul(F.elu(K).transpose(-2, -1) + 1, V)
         
         updated_z = z + (F.elu(K) + 1).sum(dim=-2)
-        M = updated_M.detach()
-        z = updated_z.detach()
+        M = updated_M
+        z = updated_z
         return M, z
 
     def _long_term_injection(self, A_dot, A_mem):
         beta = torch.sigmoid(self.beta)
         A = beta * A_mem + (1 - beta) * A_dot
         return A
+    def reset_memory(self):
+        self.M.zero_()
+        self.zero_()
     
 
 class RotaryEmbedding(nn.Module):
