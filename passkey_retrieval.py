@@ -117,14 +117,12 @@ def passkey_retrieval_test(model, tokenizer, accelerator, use_cache=False, n_gar
             input_segments = torch.tensor_split(batch['input_ids'], list(range(segment_length, batch['input_ids'].shape[1], segment_length)))
             label_segments = torch.tensor_split(batch['labels'], list(range(segment_length, batch['labels'].shape[1], segment_length)))
 
-            M_Z = None
             for i in range(len(input_segments)):
-                outputs = model(input_ids=input_segments[i], labels=label_segments[i], M_Z=M_Z)
-                M_Z = outputs.M_Z
+                outputs = model(input_ids=input_segments[i], labels=label_segments[i]) 
                 loss = outputs.loss
                 accelerator.backward(loss)
                 total_loss += loss.detach().float()
-
+            model.reset_memory()
             optimizer.step()
             lr_scheduler.step()
             optimizer.zero_grad()
@@ -142,10 +140,10 @@ def passkey_retrieval_test(model, tokenizer, accelerator, use_cache=False, n_gar
     # Segment the input_ids into smaller chunks
     input_segments = torch.tensor_split(input_ids[0], list(range(segment_length, input_ids.shape[1], segment_length)))
 
-    M_Z = None
+
     for i in range(len(input_segments)-1):
-        outputs = model(input_ids=input_segments[i].unsqueeze(0), M_Z=M_Z)
-        M_Z = outputs.M_Z
+        outputs = model(input_ids=input_segments[i].unsqueeze(0))
+
 
     generation_output = model.generate(
         input_ids=input_segments[-1].unsqueeze(0), max_new_tokens=answer_ids.shape[-1], num_beams=1, use_cache=use_cache, M_Z=M_Z
