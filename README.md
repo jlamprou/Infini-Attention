@@ -10,6 +10,17 @@
 
 This repository provides a PyTorch implementation of the Infi-Attention mechanism, following the paper step-by-step. The code is written using the HuggingFace template for seamless integration with their ecosystem.
 
+## Why this is NOT the golden solution 
+- [Yannic's Kilcher comprehensive explanation](https://youtu.be/r_UBBfTPcF0?si=4Y6dyRuk0ZcpvGW_)
+- This work introduces some neat tricks to replace the global softmax with kernels, but if you check the related work this is not a new concept at all, lot's of research has been done around linear attention which seemed promising but failed in real-world scenarios.
+- This is definitely not production-ready research or code.
+- The compressive memory scheme is an idea based on the human brain. The context of the compressive memory is "blurry" like the human brain. The problem is that this memory is not learnable. That means that the model doesn't know which information should be kept with higher quality.
+- Further research would be interesting with a learnable compressive memory scheme, here are some ideas:
+  - Differentiable Neural Computer (DNC):
+The DNC, introduced by DeepMind, is a memory-augmented neural network that combines a controller network with an external memory matrix. The controller interacts with the memory using differentiable read and write operations. The DNC has shown promising results in tasks requiring long-term memory and complex reasoning.
+  - Turing Machines and Neural Turing Machines (NTMs):
+Turing Machines are abstract computational models that can simulate any algorithm. NTMs, introduced by Google DeepMind, incorporate Turing Machine-like properties into neural networks. NTMs have an external memory matrix and a controller that learns to read from and write to the memory using attention mechanisms.
+
 ## Latest Updates:
 - Updated InfiniAttention module:
   - Changed memory M_z to a buffer for improved efficiency
