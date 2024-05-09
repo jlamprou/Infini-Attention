@@ -56,8 +56,8 @@ from transformers import (
 from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
 from modeling_qwen_transformers import Qwen2MoeForCausalLM
-from datasets import DatasetDict, interleave_datasets
-from SegmentedDataset import SegmentedDataset
+from datasets import Dataset
+from segmented_collate_fn import segmented_collate_fn
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 check_min_version("4.40.0.dev0")
 
@@ -459,8 +459,8 @@ def main():
             desc=f"Grouping texts in chunks of {block_size}",
         )
 
-    train_dataset = SegmentedDataset(lm_datasets["train"], segment_length)
-    eval_dataset = SegmentedDataset(lm_datasets["validation"], segment_length)
+    train_dataset = Dataset(lm_datasets["train"], segment_length)
+    eval_dataset = Dataset(lm_datasets["validation"], segment_length)
 
 
     # Log a few random samples from the training set:
@@ -469,10 +469,10 @@ def main():
 
     # DataLoaders creation:
     train_dataloader = DataLoader(
-        train_dataset, shuffle=True, collate_fn=default_data_collator, batch_size=args.per_device_train_batch_size
+        train_dataset, shuffle=True, collate_fn=lambda batch: segmented_collate_fn(batch, segment_length), batch_size=args.per_device_train_batch_size
     )
     eval_dataloader = DataLoader(
-        eval_dataset, collate_fn=default_data_collator, batch_size=args.per_device_eval_batch_size
+        eval_dataset, collate_fn=lambda batch: segmented_collate_fn(batch, segment_length), batch_size=args.per_device_eval_batch_size
     )
 
     # Optimizer
