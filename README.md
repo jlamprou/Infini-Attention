@@ -22,6 +22,7 @@ The DNC, introduced by DeepMind, is a memory-augmented neural network that combi
 Turing Machines are abstract computational models that can simulate any algorithm. NTMs, introduced by Google DeepMind, incorporate Turing Machine-like properties into neural networks. NTMs have an external memory matrix and a controller that learns to read from and write to the memory using attention mechanisms.
 
 ## Latest Updates:
+- Changed the use of SegmentedDataset class for segmentation to a segmented collation fn to fix batching
 - Updated InfiniAttention module:
   - Changed memory M_z to a buffer for improved efficiency
   - Implemented reset_memory() function to zero out M and z tensors after processing all segments
@@ -35,7 +36,7 @@ Turing Machines are abstract computational models that can simulate any algorith
 ## TODO
 - [ ] 1M Passkey Retrieval Finetuning and benchmark, we have to finetune and benchmark the Qwen1.5 model to check the performance of the implementation. (My 2xA100 server is on maintenance for a few days) 
 - [ ] Triton/CUDA optimized implementation of the memory ops
-- [x] New Dataset class that takes care of the segmentation
+- [x] New collation fn that takes care of the segmentation
 - [ ] New Huggingface Trainer Class that trains segment-wise
 
 ## Features
